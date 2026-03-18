@@ -1,0 +1,90 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/connection_provider.dart';
+import '../../features/connection/screens/discovery_screen.dart';
+import '../../features/connection/screens/pair_screen.dart';
+import '../../features/home/screens/home_shell.dart';
+import '../../features/dashboard/screens/dashboard_screen.dart';
+import '../../features/terminal/screens/terminal_screen.dart';
+import '../../features/files/screens/file_browser_screen.dart';
+import '../../features/actions/screens/actions_screen.dart';
+import '../../features/actions/screens/screen_viewer_screen.dart';
+import '../../features/files/screens/file_viewer_screen.dart';
+import '../../features/settings/screens/settings_screen.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final connection = ref.watch(connectionProvider);
+
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: connection.token != null ? '/dashboard' : '/discover',
+    routes: [
+      GoRoute(
+        path: '/discover',
+        builder: (context, state) => const DiscoveryScreen(),
+      ),
+      GoRoute(
+        path: '/pair',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return PairScreen(
+            host: extra['host'] as String?,
+            port: extra['port'] as int?,
+            baseUrl: extra['baseUrl'] as String?,
+            serverName: extra['name'] as String? ?? 'Server',
+          );
+        },
+      ),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, shell) => HomeShell(navigationShell: shell),
+        branches: [
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/dashboard',
+              builder: (context, state) => const DashboardScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/terminal',
+              builder: (context, state) => const TerminalScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/files',
+              builder: (context, state) => const FileBrowserScreen(),
+            ),
+          ]),
+          StatefulShellBranch(routes: [
+            GoRoute(
+              path: '/actions',
+              builder: (context, state) => const ActionsScreen(),
+            ),
+          ]),
+        ],
+      ),
+      GoRoute(
+        path: '/screen-viewer',
+        builder: (context, state) => const ScreenViewerScreen(),
+      ),
+      GoRoute(
+        path: '/file-viewer',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return FileViewerScreen(
+            path: extra['path'] as String,
+            fileName: extra['fileName'] as String,
+          );
+        },
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
+    ],
+  );
+});

@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter --version)",
+      "WebSearch",
+      "Bash(dotnet new:*)",
+      "Bash(cmd.exe //c \"dotnet --version\")",
+      "Read(//c/Program Files/dotnet/**)",
+      "Read(//c/Program Files \\(x86\\)/dotnet/**)",
+      "Read(//c/Users/jagri/**)",
+      "Read(//d//**)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" --version)",
+      "Read(//d/dev/**)",
+      "Read(//c//**)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" new web -n ClaudeRemote.Server --framework net10.0)",
+      "Bash(cmd.exe //c \"where flutter\")",
+      "Bash(cmd.exe //c \"where dart\")",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" new sln -n ClaudeRemote.Server)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" sln ClaudeRemote.Server.sln add ClaudeRemote.Server/ClaudeRemote.Server.csproj)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" sln ClaudeRemote.Server.slnx add ClaudeRemote.Server/ClaudeRemote.Server.csproj)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package Microsoft.AspNetCore.Authentication.JwtBearer)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package System.Management)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" add package System.IdentityModel.Tokens.Jwt)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" build)",
+      "Bash(cmd.exe //c \"flutter --version\")",
+      "Bash(cmd.exe //c \"flutter create --org com.clauderemote --project-name claude_remote app\")",
+      "Bash(cmd.exe //c \"flutter pub get\")",
+      "Bash(cmd.exe //c \"flutter analyze\")",
+      "Bash(cmd.exe //c \"flutter analyze --no-fatal-infos\")",
+      "Bash(grep -r ping d:/dev/projects/claudecodeapp/app --include=*.dart)",
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" build -c Release)"
+    ]
+  }
+}
