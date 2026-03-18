@@ -17,10 +17,10 @@ public class TerminalSession : IDisposable
 
     public event Action<string, string>? OutputReceived; // sessionId, data
 
-    public TerminalSession(string id, short cols = 120, short rows = 30)
+    public TerminalSession(string id, short cols = 80, short rows = 24, string? shell = null)
     {
         Id = id;
-        _conPty.Start(cols, rows);
+        _conPty.Start(cols, rows, shell);
     }
 
     /// <summary>Start reading output from the ConPTY. Call after wiring OutputReceived.</summary>
@@ -88,10 +88,10 @@ public class TerminalManager : IDisposable
 
     public event Action<string, string>? OutputReceived; // sessionId, data
 
-    public TerminalSession CreateSession(short cols = 120, short rows = 30)
+    public TerminalSession CreateSession(short cols = 80, short rows = 24, string? shell = null)
     {
         var id = Guid.NewGuid().ToString("N")[..8];
-        var session = new TerminalSession(id, cols, rows);
+        var session = new TerminalSession(id, cols, rows, shell);
         session.OutputReceived += (sid, data) => OutputReceived?.Invoke(sid, data);
         _sessions[id] = session;
         session.BeginReading(); // Start reading AFTER event handler is wired

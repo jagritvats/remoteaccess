@@ -28,7 +28,8 @@
       "Bash(cmd.exe //c \"flutter analyze\")",
       "Bash(cmd.exe //c \"flutter analyze --no-fatal-infos\")",
       "Bash(grep -r ping d:/dev/projects/claudecodeapp/app --include=*.dart)",
-      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" build -c Release)"
+      "Bash(\"/c/Program Files/dotnet/dotnet.exe\" build -c Release)",
+      "Bash(grep -E \"\\\\.\\(dart\\)$\")"
     ]
   }
 }

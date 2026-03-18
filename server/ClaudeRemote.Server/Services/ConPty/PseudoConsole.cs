@@ -38,10 +38,11 @@ internal sealed class PseudoConsole : IDisposable
     }
 
     /// <summary>
-    /// Creates a new ConPTY session running cmd.exe.
+    /// Creates a new ConPTY session with the best available shell.
     /// </summary>
-    public void Start(short cols, short rows, string? workingDirectory = null)
+    public void Start(short cols, short rows, string? shell = null, string? workingDirectory = null)
     {
+        shell ??= DetectShell();
         workingDirectory ??= Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         var sa = new SECURITY_ATTRIBUTES
@@ -75,8 +76,8 @@ internal sealed class PseudoConsole : IDisposable
         // Prepare startup info with pseudo console attribute
         InitializeStartupInfo(out var startupInfo);
 
-        // Create the child process (cmd.exe)
-        var commandLine = "cmd.exe";
+        // Create the child process
+        var commandLine = shell;
         if (!NativeMethods.CreateProcessW(
                 null,
                 commandLine,
@@ -102,6 +103,36 @@ internal sealed class PseudoConsole : IDisposable
     {
         if (_hPC == IntPtr.Zero) return;
         NativeMethods.ResizePseudoConsole(_hPC, new COORD(cols, rows));
+    }
+
+    /// <summary>Detect best available shell: pwsh.exe → powershell.exe → cmd.exe</summary>
+    public static string DetectShell()
+    {
+        // PowerShell 7+ (pwsh.exe) — best VT100/ANSI support
+        var pwsh7 = Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\PowerShell\7\pwsh.exe");
+        if (File.Exists(pwsh7)) return pwsh7;
+
+        // Check PATH for pwsh (might be installed elsewhere)
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("where", "pwsh.exe")
+            {
+                RedirectStandardOutput = true,
+                CreateNoWindow = true,
+                UseShellExecute = false
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            var output = proc?.StandardOutput.ReadLine();
+            proc?.WaitForExit(2000);
+            if (!string.IsNullOrEmpty(output) && File.Exists(output)) return output;
+        }
+        catch { }
+
+        // Legacy PowerShell 5.x (powershell.exe) — decent VT100 support
+        var legacyPs = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
+        if (File.Exists(legacyPs)) return legacyPs;
+
+        return "cmd.exe";
     }
 
     private void InitializeStartupInfo(out STARTUPINFOEX si)

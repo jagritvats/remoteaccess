@@ -81,6 +81,10 @@ app.MapPost("/api/pair", (PairRequest request) =>
 
 var api = app.MapGroup("/api").RequireAuthorization();
 
+// Terminals
+api.MapGet("/terminals", (TerminalManager mgr) =>
+    mgr.GetActiveSessionIds().Select(id => new { sessionId = id }));
+
 // System
 api.MapGet("/system", (SystemInfoService svc) => svc.GetSystemInfo());
 

@@ -34,11 +34,13 @@ public class MessageEnvelope
 public static class MessageTypes
 {
     // Terminal
+    public const string TerminalCreate = "terminalCreate";
+    public const string TerminalCreated = "terminalCreated";
+    public const string TerminalAttach = "terminalAttach";
     public const string TerminalInput = "terminalInput";
     public const string TerminalOutput = "terminalOutput";
     public const string TerminalResize = "terminalResize";
     public const string TerminalClose = "terminalClose";
-    public const string TerminalCreated = "terminalCreated";
 
     // System
     public const string SystemStats = "systemStats";

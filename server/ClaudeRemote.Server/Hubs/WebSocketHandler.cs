@@ -105,10 +105,31 @@ public class WebSocketHandler
                     _terminalManager.CloseSession(closePayload.SessionId);
                 break;
 
-            case "terminalCreate":
-                var newSession = _terminalManager.CreateSession();
+            case MessageTypes.TerminalCreate:
+                var createPayload = envelope.GetPayload<TerminalResize>();
+                var cols = (short)(createPayload?.Cols ?? 80);
+                var rows = (short)(createPayload?.Rows ?? 24);
+                var newSession = _terminalManager.CreateSession(cols, rows);
                 var created = MessageEnvelope.Create(MessageTypes.TerminalCreated, new { sessionId = newSession.Id });
                 await SendJsonAsync(ws, created, sendLock, ct);
+                break;
+
+            case MessageTypes.TerminalAttach:
+                var attachPayload = envelope.GetPayload<TerminalInput>();
+                if (attachPayload is not null)
+                {
+                    var existing = _terminalManager.GetSession(attachPayload.SessionId);
+                    if (existing is not null)
+                    {
+                        var attached = MessageEnvelope.Create(MessageTypes.TerminalCreated, new { sessionId = existing.Id });
+                        await SendJsonAsync(ws, attached, sendLock, ct);
+                    }
+                    else
+                    {
+                        var err = MessageEnvelope.Create(MessageTypes.Error, new { message = "Session not found" });
+                        await SendJsonAsync(ws, err, sendLock, ct);
+                    }
+                }
                 break;
 
             case MessageTypes.SubscribeStats:

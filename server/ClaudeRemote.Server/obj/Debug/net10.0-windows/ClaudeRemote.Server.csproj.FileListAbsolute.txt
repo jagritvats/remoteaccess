@@ -38,3 +38,4 @@ D:\dev\projects\claudecodeapp\server\ClaudeRemote.Server\obj\Debug\net10.0-windo
 D:\dev\projects\claudecodeapp\server\ClaudeRemote.Server\obj\Debug\net10.0-windows\ClaudeRemote.Server.pdb
 D:\dev\projects\claudecodeapp\server\ClaudeRemote.Server\obj\Debug\net10.0-windows\ClaudeRemote.Server.genruntimeconfig.cache
 D:\dev\projects\claudecodeapp\server\ClaudeRemote.Server\obj\Debug\net10.0-windows\ref\ClaudeRemote.Server.dll
+D:\dev\projects\claudecodeapp\server\ClaudeRemote.Server\obj\Debug\net10.0-windows\ClaudeRemote.Server.sourcelink.json

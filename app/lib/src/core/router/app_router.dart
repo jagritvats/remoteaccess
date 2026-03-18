@@ -15,12 +15,31 @@ import '../../features/settings/screens/settings_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final connection = ref.watch(connectionProvider);
+/// Notifies GoRouter to re-evaluate redirects when connection state changes,
+/// WITHOUT recreating the entire router instance.
+class _RouterRefreshNotifier extends ChangeNotifier {
+  _RouterRefreshNotifier(Ref ref) {
+    ref.listen(connectionProvider, (_, __) => notifyListeners());
+  }
+}
 
+final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: connection.token != null ? '/dashboard' : '/discover',
+    initialLocation: '/discover',
+    refreshListenable: _RouterRefreshNotifier(ref),
+    redirect: (context, state) {
+      final conn = ref.read(connectionProvider);
+      final location = state.matchedLocation;
+      final isOnAuth = location == '/discover' || location.startsWith('/pair');
+
+      // Has token → redirect away from auth screens to dashboard
+      if (conn.token != null && isOnAuth) return '/dashboard';
+      // No token → redirect away from protected screens to discover
+      if (conn.token == null && !isOnAuth) return '/discover';
+      // Otherwise don't redirect
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/discover',

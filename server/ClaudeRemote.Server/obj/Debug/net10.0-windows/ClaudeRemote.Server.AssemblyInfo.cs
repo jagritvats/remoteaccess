@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ClaudeRemote.Server")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cd233578f36ccdcf7551b6f422dfd000379ac144")]
 [assembly: System.Reflection.AssemblyProductAttribute("ClaudeRemote.Server")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ClaudeRemote.Server")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

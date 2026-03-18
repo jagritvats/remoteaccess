@@ -13,17 +13,34 @@ class TerminalScreen extends ConsumerStatefulWidget {
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   int _activeTab = 0;
   double _fontSize = 14;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    // Create first session if none exist
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final sessions = ref.read(terminalProvider);
-      if (sessions.isEmpty) {
-        ref.read(terminalProvider.notifier).createSession();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
+  }
+
+  Future<void> _init() async {
+    if (_initialized) return;
+    _initialized = true;
+
+    final notifier = ref.read(terminalProvider.notifier);
+    final sessions = ref.read(terminalProvider);
+
+    if (sessions.isNotEmpty) return;
+
+    // Check for existing server sessions to resume
+    final remoteSessions = await notifier.getRemoteSessions();
+    if (remoteSessions.isNotEmpty && mounted) {
+      // Attach to first existing session
+      for (final sid in remoteSessions) {
+        await notifier.attachSession(sid);
       }
-    });
+    } else {
+      // No existing sessions — create a new one
+      await notifier.createSession();
+    }
   }
 
   @override
@@ -37,6 +54,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
         titleTextStyle: theme.textTheme.titleMedium,
         toolbarHeight: 40,
         actions: [
+          // Close active session
+          if (sessions.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              tooltip: 'Close session',
+              onPressed: () => _closeActiveSession(sessions),
+            ),
           IconButton(
             icon: const Icon(Icons.add, size: 20),
             tooltip: 'New session',
@@ -47,11 +71,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.text_decrease, size: 20),
-            onPressed: () => setState(() => _fontSize = (_fontSize - 1).clamp(8, 24)),
+            onPressed: () =>
+                setState(() => _fontSize = (_fontSize - 1).clamp(8, 24)),
           ),
           IconButton(
             icon: const Icon(Icons.text_increase, size: 20),
-            onPressed: () => setState(() => _fontSize = (_fontSize + 1).clamp(8, 24)),
+            onPressed: () =>
+                setState(() => _fontSize = (_fontSize + 1).clamp(8, 24)),
           ),
         ],
         bottom: sessions.length > 1
@@ -67,11 +93,14 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                       final isActive = i == _activeTab;
                       return Padding(
                         padding: const EdgeInsets.only(right: 4),
-                        child: ChoiceChip(
+                        child: InputChip(
                           label: Text('Session ${i + 1}'),
                           selected: isActive,
                           onSelected: (_) => setState(() => _activeTab = i),
-                          labelStyle: TextStyle(fontSize: 12),
+                          onDeleted: () => _closeSession(sessions, i),
+                          deleteIconColor:
+                              theme.colorScheme.onSurfaceVariant,
+                          labelStyle: const TextStyle(fontSize: 12),
                           visualDensity: VisualDensity.compact,
                         ),
                       );
@@ -98,11 +127,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     }).toList(),
                   ),
                 ),
-                // Special keys toolbar
                 _SpecialKeysBar(
                   onKey: (data) {
                     if (sessions.isNotEmpty) {
-                      final idx = _activeTab.clamp(0, sessions.length - 1);
+                      final idx =
+                          _activeTab.clamp(0, sessions.length - 1);
                       ref.read(terminalProvider.notifier).sendInput(
                             sessions[idx].sessionId,
                             data,
@@ -113,6 +142,29 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               ],
             ),
     );
+  }
+
+  void _closeActiveSession(List<TerminalSession> sessions) {
+    if (sessions.isEmpty) return;
+    final idx = _activeTab.clamp(0, sessions.length - 1);
+    _closeSession(sessions, idx);
+  }
+
+  void _closeSession(List<TerminalSession> sessions, int index) {
+    final session = sessions[index];
+    ref.read(terminalProvider.notifier).closeSession(session.sessionId);
+
+    setState(() {
+      if (_activeTab >= sessions.length - 1) {
+        _activeTab = (sessions.length - 2).clamp(0, sessions.length);
+      }
+    });
+
+    // If last session closed, create a new one
+    if (sessions.length <= 1) {
+      ref.read(terminalProvider.notifier).createSession();
+      setState(() => _activeTab = 0);
+    }
   }
 }
 
@@ -136,10 +188,10 @@ class _SpecialKeysBar extends StatelessWidget {
             _key('TAB', '\t'),
             _key('CTRL', null, isModifier: true),
             _divider(),
-            _key('\u2191', '\x1b[A'),  // Up arrow
-            _key('\u2193', '\x1b[B'),  // Down arrow
-            _key('\u2190', '\x1b[D'),  // Left arrow
-            _key('\u2192', '\x1b[C'),  // Right arrow
+            _key('\u2191', '\x1b[A'),
+            _key('\u2193', '\x1b[B'),
+            _key('\u2190', '\x1b[D'),
+            _key('\u2192', '\x1b[C'),
             _divider(),
             _key('|', '|'),
             _key('/', '/'),
@@ -165,7 +217,8 @@ class _SpecialKeysBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           onTap: data != null ? () => onKey(data) : null,
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey.shade600),
               borderRadius: BorderRadius.circular(6),
@@ -188,6 +241,7 @@ class _SpecialKeysBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: SizedBox(
             height: 20,
-            child: VerticalDivider(width: 1, color: Colors.grey.shade600)),
+            child:
+                VerticalDivider(width: 1, color: Colors.grey.shade600)),
       );
 }

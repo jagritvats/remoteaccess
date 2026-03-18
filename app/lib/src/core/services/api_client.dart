@@ -41,6 +41,12 @@ class ApiClient {
     return response.data;
   }
 
+  // Terminals
+  Future<List<dynamic>> getTerminals() async {
+    final response = await _dio.get('/api/terminals');
+    return response.data;
+  }
+
   // System
   Future<Map<String, dynamic>> getSystemInfo() async {
     final response = await _dio.get('/api/system');
