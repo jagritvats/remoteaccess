@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/services/dio_factory.dart';
 import '../../../core/services/discovery_service.dart';
 
 final _discoveryProvider =
@@ -52,7 +53,7 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     setState(() => _checkingEmulator = true);
 
     try {
-      final dio = Dio(BaseOptions(connectTimeout: const Duration(seconds: 2)));
+      final dio = DioFactory.create(connectTimeout: const Duration(seconds: 2));
       final response = await dio.get('http://10.0.2.2:8443/api/health');
       if (response.statusCode == 200 && mounted) {
         setState(() => _emulatorAvailable = true);
@@ -79,6 +80,10 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => context.push('/debug-log'),
+        child: const Icon(Icons.bug_report),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(24),
@@ -245,14 +250,43 @@ class _DiscoveryScreenState extends ConsumerState<DiscoveryScreen> {
     );
   }
 
-  void _connectRemote() {
+  Future<void> _connectRemote() async {
     var url = _remoteUrlController.text.trim();
     if (url.isEmpty) return;
     // Auto-add https:// if no scheme
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
       url = 'https://$url';
     }
-    _goToPair(baseUrl: url, name: Uri.tryParse(url)?.host ?? url);
+
+    // Validate server is reachable before going to pair screen
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Checking server...'), duration: Duration(seconds: 10)),
+    );
+
+    try {
+      final dio = DioFactory.create(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+      );
+      final response = await dio.get('$url/api/health');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+      if (response.statusCode == 200) {
+        _goToPair(baseUrl: url, name: Uri.tryParse(url)?.host ?? url);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Server responded with status ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cannot reach server: ${e is DioException ? e.message : e}')),
+      );
+    }
   }
 
   @override

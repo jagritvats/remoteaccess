@@ -11,6 +11,7 @@ import '../../features/files/screens/file_browser_screen.dart';
 import '../../features/actions/screens/actions_screen.dart';
 import '../../features/actions/screens/screen_viewer_screen.dart';
 import '../../features/files/screens/file_viewer_screen.dart';
+import '../../features/debug/screens/network_log_screen.dart';
 import '../../features/settings/screens/settings_screen.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -31,7 +32,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final conn = ref.read(connectionProvider);
       final location = state.matchedLocation;
-      final isOnAuth = location == '/discover' || location.startsWith('/pair');
+      final isOnAuth = location == '/discover' || location.startsWith('/pair') || location == '/debug-log';
 
       // Has token → redirect away from auth screens to dashboard
       if (conn.token != null && isOnAuth) return '/dashboard';
@@ -103,6 +104,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/debug-log',
+        builder: (context, state) => const NetworkLogScreen(),
       ),
     ],
   );

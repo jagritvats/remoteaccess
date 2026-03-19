@@ -17,7 +17,7 @@ public class TerminalSession : IDisposable
 
     public event Action<string, string>? OutputReceived; // sessionId, data
 
-    public TerminalSession(string id, short cols = 80, short rows = 24, string? shell = null)
+    public TerminalSession(string id, short cols = 50, short rows = 20, string? shell = null)
     {
         Id = id;
         _conPty.Start(cols, rows, shell);
@@ -88,7 +88,7 @@ public class TerminalManager : IDisposable
 
     public event Action<string, string>? OutputReceived; // sessionId, data
 
-    public TerminalSession CreateSession(short cols = 80, short rows = 24, string? shell = null)
+    public TerminalSession CreateSession(short cols = 50, short rows = 20, string? shell = null)
     {
         var id = Guid.NewGuid().ToString("N")[..8];
         var session = new TerminalSession(id, cols, rows, shell);

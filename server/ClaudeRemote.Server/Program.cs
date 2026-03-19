@@ -64,6 +64,13 @@ app.UseWebSockets();
 
 // ============ Public Endpoints (no auth) ============
 
+app.MapGet("/", () => Results.Ok(new
+{
+    app = "ClaudeRemote",
+    status = "running",
+    server = Environment.MachineName
+}));
+
 app.MapGet("/api/health", () => Results.Ok(new
 {
     status = "ok",
@@ -215,9 +222,9 @@ app.Lifetime.ApplicationStarted.Register(() =>
     Console.ForegroundColor = ConsoleColor.DarkYellow;
     Console.WriteLine("  Remote access (pick one):");
     Console.ResetColor();
-    Console.WriteLine("    ngrok:      ngrok http " + port);
-    Console.WriteLine("    cloudflare: cloudflared tunnel --url http://localhost:" + port);
-    Console.WriteLine("    bore:       bore local " + port + " --to bore.pub");
+    Console.WriteLine("    cloudflare (recommended): cloudflared tunnel --url http://localhost:" + port);
+    Console.WriteLine("    ngrok:                    ngrok http " + port);
+    Console.WriteLine("    bore:                     bore local " + port + " --to bore.pub");
     Console.WriteLine();
     Console.WriteLine("  Press Ctrl+C to stop the server.");
     Console.WriteLine();

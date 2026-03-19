@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_client.dart';
@@ -62,12 +63,13 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
   static String buildBaseUrl(String host, int port) => 'http://$host:$port';
 
   /// Pair using host + port (LAN / emulator)
-  Future<bool> pair(String host, int port, String pin) async {
+  Future<String?> pair(String host, int port, String pin) async {
     return pairWithUrl(buildBaseUrl(host, port), pin);
   }
 
   /// Pair using full URL (tunnel / remote)
-  Future<bool> pairWithUrl(String baseUrl, String pin) async {
+  /// Returns null on success, or an error message string on failure.
+  Future<String?> pairWithUrl(String baseUrl, String pin) async {
     // Normalize: remove trailing slash
     if (baseUrl.endsWith('/')) baseUrl = baseUrl.substring(0, baseUrl.length - 1);
 
@@ -91,9 +93,14 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
       );
 
       await connect();
-      return true;
-    } catch (_) {
-      return false;
+      return null; // success
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        return 'Invalid PIN. Please try again.';
+      }
+      return 'Connection failed: ${e.message}';
+    } catch (e) {
+      return 'Connection failed: $e';
     }
   }
 

@@ -121,11 +121,11 @@ class _PairScreenState extends ConsumerState<PairScreen> {
     });
 
     final notifier = ref.read(connectionProvider.notifier);
-    final bool success;
+    final String? error;
     if (widget.baseUrl != null) {
-      success = await notifier.pairWithUrl(widget.baseUrl!, pin);
+      error = await notifier.pairWithUrl(widget.baseUrl!, pin);
     } else {
-      success = await notifier.pair(
+      error = await notifier.pair(
         widget.host!,
         widget.port ?? 8443,
         pin,
@@ -134,12 +134,12 @@ class _PairScreenState extends ConsumerState<PairScreen> {
 
     if (!mounted) return;
 
-    if (success) {
+    if (error == null) {
       context.go('/dashboard');
     } else {
       setState(() {
         _loading = false;
-        _error = 'Invalid PIN. Please try again.';
+        _error = error;
         for (final c in _controllers) {
           c.clear();
         }

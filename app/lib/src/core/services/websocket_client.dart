@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'network_log.dart';
+import 'ws_connect_stub.dart'
+    if (dart.library.io) 'ws_connect_native.dart' as ws_platform;
 
 class MessageEnvelope {
   final String type;
@@ -79,13 +82,13 @@ class WebSocketClient {
   Future<void> connect() async {
     if (_status == ConnectionStatus.connecting) return;
     _setStatus(ConnectionStatus.connecting);
+    NetworkLog.instance.add('WS', '-> Connecting to $_wsUrl');
 
     try {
-      final uri = Uri.parse(_wsUrl);
-      _channel = WebSocketChannel.connect(uri);
-      await _channel!.ready;
+      _channel = await ws_platform.connectWebSocket(_wsUrl);
 
       _setStatus(ConnectionStatus.connected);
+      NetworkLog.instance.add('WS', 'Connected to $_wsUrl');
       _reconnectAttempts = 0;
       _startHeartbeat();
 
@@ -104,6 +107,7 @@ class WebSocketClient {
         onError: (_) => _onDisconnected(),
       );
     } catch (e) {
+      NetworkLog.instance.add('ERROR', 'WS connect failed', e.toString());
       _setStatus(ConnectionStatus.error);
       _scheduleReconnect();
     }
@@ -136,6 +140,7 @@ class WebSocketClient {
   void _onDisconnected() {
     _heartbeatTimer?.cancel();
     if (_status != ConnectionStatus.disconnected) {
+      NetworkLog.instance.add('WS', 'Disconnected');
       _setStatus(ConnectionStatus.error);
       _scheduleReconnect();
     }

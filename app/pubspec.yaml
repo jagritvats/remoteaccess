@@ -13,6 +13,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
   go_router: ^14.8.1
   dio: ^5.7.0
+  native_dio_adapter: ^1.5.1
   web_socket_channel: ^3.0.2
   flutter_secure_storage: ^9.2.4
   xterm: ^4.0.0

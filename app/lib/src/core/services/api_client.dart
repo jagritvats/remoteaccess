@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'dio_factory.dart';
 
 class ApiClient {
   late final Dio _dio;
@@ -7,12 +8,7 @@ class ApiClient {
   String get baseUrl => _dio.options.baseUrl;
 
   ApiClient({required String baseUrl}) {
-    _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 5),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 30),
-    ));
+    _dio = DioFactory.create(baseUrl: baseUrl);
 
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {

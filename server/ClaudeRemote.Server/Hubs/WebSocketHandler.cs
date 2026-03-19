@@ -107,8 +107,8 @@ public class WebSocketHandler
 
             case MessageTypes.TerminalCreate:
                 var createPayload = envelope.GetPayload<TerminalResize>();
-                var cols = (short)(createPayload?.Cols ?? 80);
-                var rows = (short)(createPayload?.Rows ?? 24);
+                var cols = (short)(createPayload?.Cols > 0 ? createPayload.Cols : 50);
+                var rows = (short)(createPayload?.Rows > 0 ? createPayload.Rows : 20);
                 var newSession = _terminalManager.CreateSession(cols, rows);
                 var created = MessageEnvelope.Create(MessageTypes.TerminalCreated, new { sessionId = newSession.Id });
                 await SendJsonAsync(ws, created, sendLock, ct);
