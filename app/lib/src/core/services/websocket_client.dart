@@ -46,9 +46,11 @@ class WebSocketClient {
   final String token;
 
   WebSocketChannel? _channel;
+  StreamSubscription? _streamSub;
   ConnectionStatus _status = ConnectionStatus.disconnected;
   Timer? _reconnectTimer;
   Timer? _heartbeatTimer;
+  Timer? _pongTimer;
   int _reconnectAttempts = 0;
   static const int _maxReconnectDelay = 8;
 
@@ -85,6 +87,10 @@ class WebSocketClient {
     NetworkLog.instance.add('WS', '-> Connecting to $_wsUrl');
 
     try {
+      // Cancel previous stream listener to prevent leaks
+      await _streamSub?.cancel();
+      _streamSub = null;
+
       _channel = await ws_platform.connectWebSocket(_wsUrl);
 
       _setStatus(ConnectionStatus.connected);
@@ -92,13 +98,18 @@ class WebSocketClient {
       _reconnectAttempts = 0;
       _startHeartbeat();
 
-      _channel!.stream.listen(
+      _streamSub = _channel!.stream.listen(
         (data) {
+          // Any received data proves connection is alive — cancel pong timeout
+          _pongTimer?.cancel();
+
           if (data is String) {
             try {
               final decoded = json.decode(data) as Map<String, dynamic>;
               _messageController.add(MessageEnvelope.fromJson(decoded));
-            } catch (_) {}
+            } catch (e) {
+              NetworkLog.instance.add('ERROR', 'WS message parse failed', e.toString());
+            }
           } else if (data is List<int>) {
             _binaryController.add(Uint8List.fromList(data));
           }
@@ -125,6 +136,9 @@ class WebSocketClient {
   void disconnect() {
     _reconnectTimer?.cancel();
     _heartbeatTimer?.cancel();
+    _pongTimer?.cancel();
+    _streamSub?.cancel();
+    _streamSub = null;
     _channel?.sink.close();
     _channel = null;
     _setStatus(ConnectionStatus.disconnected);
@@ -139,6 +153,7 @@ class WebSocketClient {
 
   void _onDisconnected() {
     _heartbeatTimer?.cancel();
+    _pongTimer?.cancel();
     if (_status != ConnectionStatus.disconnected) {
       NetworkLog.instance.add('WS', 'Disconnected');
       _setStatus(ConnectionStatus.error);
@@ -157,10 +172,16 @@ class WebSocketClient {
 
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
-    _heartbeatTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _pongTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(seconds: 8), (_) {
       if (_status == ConnectionStatus.connected) {
         try {
           _channel?.sink.add('{"type":"ping"}');
+          // If no response within 5s, consider connection dead
+          _pongTimer = Timer(const Duration(seconds: 5), () {
+            NetworkLog.instance.add('WS', 'Pong timeout — reconnecting');
+            _onDisconnected();
+          });
         } catch (_) {
           _onDisconnected();
         }

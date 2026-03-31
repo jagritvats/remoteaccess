@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_client.dart';
@@ -36,13 +38,25 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
   static const _storage = FlutterSecureStorage();
   ApiClient? _apiClient;
   WebSocketClient? _wsClient;
+  StreamSubscription? _statusSub;
+  late final AppLifecycleListener _lifecycleListener;
 
   ConnectionNotifier() : super(const ConnectionState()) {
+    _lifecycleListener = AppLifecycleListener(
+      onResume: _onAppResumed,
+    );
     _loadSaved();
   }
 
   ApiClient? get apiClient => _apiClient;
   WebSocketClient? get wsClient => _wsClient;
+
+  void _onAppResumed() {
+    // Proactively reconnect WebSocket when app returns from background
+    if (_wsClient != null && _wsClient!.status != ConnectionStatus.connected) {
+      _wsClient!.connect();
+    }
+  }
 
   Future<void> _loadSaved() async {
     final baseUrl = await _storage.read(key: 'baseUrl');
@@ -111,12 +125,13 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
     _apiClient!.setToken(state.token!);
 
     _wsClient?.disconnect();
+    _statusSub?.cancel();
     _wsClient = WebSocketClient(
       baseUrl: state.baseUrl!,
       token: state.token!,
     );
 
-    _wsClient!.statusStream.listen((status) {
+    _statusSub = _wsClient!.statusStream.listen((status) {
       state = state.copyWith(
         isConnected: status == ConnectionStatus.connected,
       );
@@ -126,6 +141,8 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
   }
 
   Future<void> disconnect() async {
+    _statusSub?.cancel();
+    _statusSub = null;
     _wsClient?.disconnect();
     _apiClient?.clearToken();
     await _storage.deleteAll();
@@ -134,6 +151,8 @@ class ConnectionNotifier extends StateNotifier<ConnectionState> {
 
   @override
   void dispose() {
+    _lifecycleListener.dispose();
+    _statusSub?.cancel();
     _wsClient?.dispose();
     super.dispose();
   }

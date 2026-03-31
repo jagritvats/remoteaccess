@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:xterm/xterm.dart';
+import '../../../core/providers/connection_provider.dart';
 import '../providers/terminal_provider.dart';
 
 class TerminalScreen extends ConsumerStatefulWidget {
@@ -13,42 +15,43 @@ class TerminalScreen extends ConsumerStatefulWidget {
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   int _activeTab = 0;
   double _fontSize = 14;
-  bool _initialized = false;
+  bool _loading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _init());
-  }
-
-  Future<void> _init() async {
-    if (_initialized) return;
-    _initialized = true;
+  /// Reactively ensure at least one terminal session exists.
+  /// Called from build() when sessions are empty and connection is active.
+  Future<void> _ensureSession() async {
+    if (_loading) return;
+    setState(() => _loading = true);
 
     final notifier = ref.read(terminalProvider.notifier);
-    final sessions = ref.read(terminalProvider);
 
-    if (sessions.isNotEmpty) return;
-
-    // Check for existing server sessions to resume
+    // Try to reattach existing server sessions first
     final remoteSessions = await notifier.getRemoteSessions();
     if (remoteSessions.isNotEmpty && mounted) {
-      // Attach to first existing session
       for (final sid in remoteSessions) {
         await notifier.attachSession(sid);
       }
-    } else {
+    } else if (mounted) {
       // No existing sessions — create a new one
       await notifier.createSession();
     }
+
+    if (mounted) setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     final sessions = ref.watch(terminalProvider);
+    final conn = ref.watch(connectionProvider);
     final theme = Theme.of(context);
 
+    // Auto-create a session when connected but no sessions exist
+    if (sessions.isEmpty && conn.isConnected && !_loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _ensureSession());
+    }
+
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         title: const Text('Terminal'),
         titleTextStyle: theme.textTheme.titleMedium,
@@ -119,10 +122,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     index: _activeTab.clamp(0, sessions.length - 1),
                     children: sessions.map((session) {
                       return TerminalView(
+                        key: ValueKey(session.sessionId),
                         session.terminal,
                         textStyle: TerminalStyle(fontSize: _fontSize),
                         theme: TerminalThemes.whiteOnBlack,
                         autofocus: true,
+                        keyboardType: TextInputType.visiblePassword,
+                        deleteDetection: true,
                       );
                     }).toList(),
                   ),
@@ -138,6 +144,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                           );
                     }
                   },
+                ),
+                // Smooth keyboard spacer — pushes special keys bar above soft keyboard
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  height: MediaQuery.of(context).viewInsets.bottom,
                 ),
               ],
             ),
@@ -186,6 +197,7 @@ class _SpecialKeysBar extends StatelessWidget {
           children: [
             _key('ESC', '\x1b'),
             _key('TAB', '\t'),
+            _key('RET', '\r'),
             _key('CTRL', null, isModifier: true),
             _divider(),
             _key('\u2191', '\x1b[A'),
@@ -215,7 +227,10 @@ class _SpecialKeysBar extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(6),
-          onTap: data != null ? () => onKey(data) : null,
+          onTap: data != null ? () {
+            HapticFeedback.lightImpact();
+            onKey(data);
+          } : null,
           child: Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 10, vertical: 8),

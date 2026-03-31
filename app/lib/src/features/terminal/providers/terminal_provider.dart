@@ -21,6 +21,17 @@ class TerminalNotifier extends StateNotifier<List<TerminalSession>> {
 
   TerminalNotifier(this._ws, this._api) : super([]) {
     _listenForOutput();
+    _reattachExistingSessions();
+  }
+
+  /// On provider rebuild (after reconnect), re-attach any server sessions.
+  Future<void> _reattachExistingSessions() async {
+    final remoteSessions = await getRemoteSessions();
+    for (final sid in remoteSessions) {
+      if (!state.any((s) => s.sessionId == sid)) {
+        await attachSession(sid);
+      }
+    }
   }
 
   void _listenForOutput() {

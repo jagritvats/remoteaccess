@@ -31,7 +31,7 @@ public class TerminalSession : IDisposable
 
     private void ReadOutputLoop(CancellationToken ct)
     {
-        var buffer = new byte[4096];
+        var buffer = new byte[16384];
         var reader = _conPty.ReaderStream;
         if (reader is null) return;
 

@@ -28,6 +28,7 @@ public class WebSocketHandler
     private class ClientState
     {
         public CancellationTokenSource? StatsSubscription;
+        public DateTime LastTerminalOutput = DateTime.MinValue;
     }
 
     public async Task HandleAsync(WebSocket webSocket, CancellationToken ct)
@@ -37,10 +38,11 @@ public class WebSocketHandler
         var sendLock = new SemaphoreSlim(1, 1);
         var state = new ClientState();
 
-        // Wire up terminal output → WebSocket
+        // Wire up terminal output → WebSocket (high priority — skips stats push)
         _terminalManager.OutputReceived += async (sessionId, data) =>
         {
             if (webSocket.State != WebSocketState.Open) return;
+            state.LastTerminalOutput = DateTime.UtcNow;
             var msg = MessageEnvelope.Create(MessageTypes.TerminalOutput, new { sessionId, data });
             await SendJsonAsync(webSocket, msg, sendLock, ct);
         };
@@ -135,7 +137,7 @@ public class WebSocketHandler
             case MessageTypes.SubscribeStats:
                 state.StatsSubscription?.Cancel();
                 state.StatsSubscription = new CancellationTokenSource();
-                _ = PushStatsLoopAsync(ws, sendLock, state.StatsSubscription.Token);
+                _ = PushStatsLoopAsync(ws, sendLock, state, state.StatsSubscription.Token);
                 break;
 
             case MessageTypes.UnsubscribeStats:
@@ -171,12 +173,19 @@ public class WebSocketHandler
         }
     }
 
-    private async Task PushStatsLoopAsync(WebSocket ws, SemaphoreSlim sendLock, CancellationToken ct)
+    private async Task PushStatsLoopAsync(WebSocket ws, SemaphoreSlim sendLock, ClientState clientState, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
         {
             try
             {
+                // Skip stats push if terminal was active recently (avoid blocking terminal output)
+                if ((DateTime.UtcNow - clientState.LastTerminalOutput).TotalMilliseconds < 500)
+                {
+                    await Task.Delay(500, ct);
+                    continue;
+                }
+
                 var stats = _systemInfoService.GetSystemInfo();
                 var msg = MessageEnvelope.Create(MessageTypes.SystemStats, stats);
                 await SendJsonAsync(ws, msg, sendLock, ct);
